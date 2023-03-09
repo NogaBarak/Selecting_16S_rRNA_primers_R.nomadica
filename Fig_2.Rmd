@@ -1,15 +1,10 @@
----
-title: "Post DADA2 analysis"
-output: html_notebook
----
-```{r}
 library("dplyr")
 library('rstatix')
 library('ggplot2')
 library('ggpubr')
 library('tibble')
-```
-```{r}
+
+#### Upload track data (saved during ASVs tables creation) ####
 Track_V1V2<-readRDS("./Track_V1V2.rds")%>%
               data.frame() %>%
               mutate(Primer="V1V2",
@@ -25,7 +20,7 @@ Track_V4V5<-readRDS("./Track_V4V5.rds")%>%
               data.frame() %>%
               mutate(Primer="V4V5") %>%
               select (c(input,table,Primer))
-
+## Combine to one table and organise data ##
 Track_all_primers <- rbind(Track_V1V2,Track_V3V4,Track_V4V5)%>%
                   rownames_to_column(var = "name") %>%
                   mutate(Survivors= table/input*100,
@@ -36,17 +31,13 @@ Track_all_primers <- rbind(Track_V1V2,Track_V3V4,Track_V4V5)%>%
                          grepl("V",name) ~ "GVC",
                          grepl("R",name) ~ "Rhopalium",
                          grepl("WD",name)~'Sea water'))
-
-```
-
-```{r}
-# Pairwise comparisons
+                       
+## Pairwise comparisons
 pwc <- Track_all_primers %>% 
   dunn_test(Survivors ~ Primer, p.adjust.method = "bonferroni") 
-pwc
-
 pwc <- pwc %>% add_xy_position(x = "Primer")
 
+#### Plot Figure 2 ####
 ggplot(Track_all_primers,aes(x=Primer, y=Survivors,color=Primer))+
    geom_boxplot(outlier.shape = NA)+
   labs(color = "Jellyfish tissues types")+
@@ -63,10 +54,9 @@ ggplot(Track_all_primers,aes(x=Primer, y=Survivors,color=Primer))+
         legend.title = element_text(face = "bold", size = 10), 
         axis.title.x=element_blank(),
         legend.position="right")
-
+#### Save fig to pdf ####
 ggsave("./fig_2.pdf",
        units = "cm", 
        width = 11, 
        height = 10,
        dpi=300)
-```
