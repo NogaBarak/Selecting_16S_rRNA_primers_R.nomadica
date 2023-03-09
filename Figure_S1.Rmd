@@ -1,75 +1,57 @@
----
-title: "R Notebook"
-output: html_notebook
----
-
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-```{r}
 library('ggplot2')
 library('ggpubr')
 library('utils')
 library('dplyr')
-```
+library(cowplot)
 
-```{r}
+# Upload mock data
 mock<- read.csv("./Mock_community_data/Mock_all_primers.csv",h=T)
-
+# Calculte seq length for each primers
 mock_read_length <- mock %>%
   group_by(Seq_length, Primer) %>%
   summarize(count = n())%>%
   mutate(Seq_length=as.character(Seq_length)) 
-
+# Plot fig S1A
 ggplot(mock_read_length, aes(y=count, x=Seq_length, fill=Primer))+
   geom_bar(stat="identity")+
   scale_fill_manual(values = Primer_color)+
-  scale_y_continuous(breaks = seq(0,10, by = 2)) + # add more y-axis ticks
+  scale_y_continuous(breaks = seq(0,10, by = 2)) +
   theme_pubr() +
   theme(text = element_text(size = 10),
         legend.key.size = unit(3, 'mm'),
         axis.title = element_text(face = "bold", size = 10),
         legend.title = element_text(face = "bold", size = 10),
         axis.text.x = element_text(angle = 45,hjust = 1),
-        strip.background = element_blank(),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
         legend.position = "right",
         strip.text = element_blank()) +
   guides(fill = guide_legend("Primers", ncol = 1))+
   xlab("ASV sequence length") + ylab("Number of ASVs") 
-
+# Save to pdf
 ggsave("./fig_S1.pdf",
        units = "mm", 
        width = 90, 
        height = 60,
        dpi=300)
-```
-
-```{r}
+# Upload error data       
 mock_error<-read.csv("./Mock_community_data/zymo_vs_primers.csv",h=T)
 
-library(cowplot)
-# create the bar plot
+# Create bar plot
 bar_plot <- ggplot(mock_error, aes(y=ASVs, x=Genus, fill=Primers)) +
   geom_bar(position = "dodge", stat="identity") +
   scale_fill_manual(values = Primer_color) +
-  scale_y_continuous(breaks = seq(0, 10, by = 1), name = "Number of ASVs") +
+  scale_y_continuous(breaks = seq(0, 5, by = 1), name = "Number of ASVs") +
   theme_pubr() +
   theme(text = element_text(size = 10),
         legend.key.size = unit(3, 'mm'),
         axis.title = element_text(face = "bold", size = 10),
         legend.title = element_text(face = "bold", size = 10),
         axis.text.x = element_text(angle = 90, hjust = 1),
-        strip.background = element_blank(),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
         legend.position = "right",
         strip.text = element_blank()) +
   guides(fill = guide_legend("Primers", ncol = 1)) +
   xlab("Genus")
 
-# create the error point plot
+# Create error point plot
 error_plot <- ggplot(mock_error, aes(y=Error, x=Genus, color=Primers)) +
   geom_point(position = position_dodge(width = 0.6)) +
   scale_color_manual(values = Primer_color) +
@@ -81,31 +63,16 @@ error_plot <- ggplot(mock_error, aes(y=Error, x=Genus, color=Primers)) +
         axis.title.x = element_blank(),
         legend.title = element_text(face = "bold", size = 10),
         axis.text.x = element_blank(),
-        strip.background = element_blank(),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
         legend.position = "right",
         strip.text = element_blank()) +
   guides(color = guide_legend("Primers", ncol = 1)) +
   xlab("Genus")
 
 # arrange the plots
-plot_grid(error_plot,bar_plot, ncol = 1, align = "hv", axis = "tb")
-
-
+plot_grid(error_plot,bar_plot, ncol = 1, align = "v")
 
 ggsave("./fig_S1B.pdf",
        units = "mm", 
        width = 90, 
        height = 140,
        dpi=300)
-```
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-
-?ggsave
-
