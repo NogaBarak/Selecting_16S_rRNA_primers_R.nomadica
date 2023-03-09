@@ -1,12 +1,10 @@
-```{r}
 library('phyloseq')
 library("dplyr")
 library('ggplot2')
 library('ggpubr')
 library('forcats')
-```
+
 ### Modify V1V2 Phyloseq ###
-```{r}
 V1V2_phyloseq_modified<-readRDS("./V1V2_phyloseq")
 tax_table(V1V2_phyloseq_modified)["ASV2", ] <- c("Bacteria", "Proteobacteria" ,"Alphaproteobacteria","Rickettsiales","Rickettsiales_uncl","Rickettsiales_uncl","Rickettsiales_uncl") 
 tax_table(V1V2_phyloseq_modified)["ASV4", ]<- c("Bacteria", "Firmicutes","Bacilli","Bacilli_uncl","Bacilli_uncl","Bacilli_uncl" ,"Bacilli_uncl") 
@@ -14,8 +12,8 @@ tax_table(V1V2_phyloseq_modified)["ASV4", ]<- c("Bacteria", "Firmicutes","Bacill
 tax_table(V1V2_phyloseq_modified)[1:10, ]
                                                 
 saveRDS(V1V2_phyloseq_modified,"V1V2_phyloseq_modified")
-```
-```{r}
+
+### Redo NMDS using modified data ###
 file_paths <- c("./V1V2_phyloseq_modified", "./V3V4_phyloseq", "./V4V5_phyloseq")
 
 # Create an empty list to store the results
@@ -47,11 +45,6 @@ V1V2_tax_glom <- phy_objs[[1]]
 V3V4_tax_glom <- phy_objs[[2]]
 V4V5_tax_glom <- phy_objs[[3]]
 
-saveRDS(V1V2_tax_glom,"./V1V2_tax_glom_modified.rds")
-saveRDS(V3V4_tax_glom,"./V3V4_tax_glom.rds")
-saveRDS(V4V5_tax_glom,"./V4V5_tax_glom.rds")
-
-
 phy_glom_Genus_merged<-merge_phyloseq(V1V2_tax_glom,V3V4_tax_glom,V4V5_tax_glom)
 
 # Calculate Bray-Curtis dissimilarity matrix
@@ -70,12 +63,10 @@ phy_glom_Genus_merged<-merge_phyloseq(V1V2_tax_glom,V3V4_tax_glom,V4V5_tax_glom)
                                grepl("Gastrovascular canals",Tissue_type)~"GVC", 
                    TRUE ~ Tissue_type))
   
-  # Merge metadata with NMDS coordinates
+ # Merge metadata with NMDS coordinates
 nmds_coords_merged <- left_join(nmds_coords_only_merged, metadata_merged, by = "Sample_ID")
-```
 
 #### Plot NMDS ordination merged ####
-```{r}
 ggplot(nmds_coords_merged, aes(x = MDS1, y = MDS2,shape = Primers, color = Tissue_type)) +
  geom_point(size=3)+ 
 scale_color_manual(values =Tissue_color)+
@@ -96,9 +87,7 @@ ggsave("./fig.S2A.pdf",
        width = 15, 
        height = 10,
        dpi=300)
-```
 
-```{r}
 # Create a list with the phyloseq objects and their corresponding names
 phyloseqs <- list(
   V1V2_phyloseq_modified = "./V1V2_phyloseq_modified",
@@ -155,9 +144,8 @@ Primer_combined_Order$Order <- factor(
 )
 # Drop unused levels
 Primer_combined_Order$Order <- droplevels(Primer_combined_Order$Order)
-```
 
-```{r}
+### Plot modified bar plot ###
 Primer_combined_Order <- Primer_combined_Order %>%
   mutate(Order = reorder(Order, Abund.total),
          Order = fct_rev(factor(Order)),
@@ -184,4 +172,3 @@ ggsave("./fig.S2B.pdf",
        width = 180, 
        height = 100,
        dpi=300)
-```
