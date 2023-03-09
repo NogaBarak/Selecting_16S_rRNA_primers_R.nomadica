@@ -1,21 +1,10 @@
----
-title: "R Notebook"
-output: html_notebook
----
-
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-```{r}
 library("dplyr")
 library('phyloseq')
 library('ggplot2')
 library('ggpubr')
 library('forcats')
 library('VennDiagram')
-```
 
-```{r}
 # Create a list with the phyloseq objects and their corresponding names
 phyloseqs <- list(
   V1V2_phyloseq = "./V1V2_phyloseq",
@@ -72,16 +61,14 @@ Primer_combined_Order$Order <- factor(
 )
 # Drop unused levels
 Primer_combined_Order$Order <- droplevels(Primer_combined_Order$Order)
-```
-
-```{r}
+# Combie primers to Order level
 Primer_combined_Order <- Primer_combined_Order %>%
   mutate(Order = reorder(Order, Abund.total),
          Order = fct_rev(factor(Order)),
          Order = fct_relevel(Order, "Other taxa", after = Inf),
          Sample_name =fct_relevel(Sample_name, "Sea water", after = 0))
 
-
+#### Plot fig 5C ####
 ggplot(Primer_combined_Order, aes(y=Sample_name, x=Abund.total,fill=Order))+
   facet_wrap(~Primers)+
   geom_bar(position="stack", stat="identity")+
@@ -96,31 +83,26 @@ ggplot(Primer_combined_Order, aes(y=Sample_name, x=Abund.total,fill=Order))+
         legend.position = "top") +
   guides(fill = guide_legend("Order",ncol = 5))+
   xlab("Relative sequences abundance (%)") + ylab("Tissue type")
-
+# Save to pdf
 ggsave("./fig_5.pdf",
        units = "mm", 
        width = 180, 
        height = 100,
        dpi=300)
-```
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-
-```{r}
-#Valvulate overlap of lineages in the sequence abundance of the unique ones
+       
+#### Overlap of taxa ####
+# Upload genus files
 V1V2_tax_glom = readRDS("./V1V2_tax_glom.rds")
 V3V4_tax_glom = readRDS("./V3V4_tax_glom.rds")
 V4V5_tax_glom = readRDS("./V4V5_tax_glom.rds")
 
+# Create a list with all primers
 Genus_over <- list()
 Genus_over$V1V2 <- as.vector(tax_table(V1V2_tax_glom)[,"Genus"])
 Genus_over$V3V4 <- as.vector(tax_table(V3V4_tax_glom)[,"Genus"])
 Genus_over$V4V5 <- as.vector(tax_table(V4V5_tax_glom)[,"Genus"])
 
+# Create venn diagram
 Genus_over.venn<-venn.diagram(Genus_over,
                               col=c("#440154ff", '#21908dff', '#fde725ff'),
                               fill = c(alpha("#440154ff",0.3), alpha('#21908dff',0.3), alpha('#fde725ff',0.3)),
@@ -129,12 +111,10 @@ Genus_over.venn<-venn.diagram(Genus_over,
                               cat.cex= 1,
                               filename = NULL, scaled = TRUE,
                               inverted = FALSE, print.mode = c("raw","percent"))
-
+# Save to pdf
 pdf("Genus_over.venn.pdf",
     width = 3, 
     height = 3)
 grid.newpage()
 venn.diagram_genus <- grid.draw(Genus_over.venn)
 dev.off()
-```
-
