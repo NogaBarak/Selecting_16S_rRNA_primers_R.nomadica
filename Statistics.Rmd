@@ -1,17 +1,7 @@
----
-title: "Dissimilarity Stat"
-output: html_notebook
----
-```{r}
-library("dplyr")
-library('phyloseq')
-library('vegan')
-library('pairwiseAdonis')
-```
 ##########################
 ### Dissimilarity Stat ###
 ##########################
-```{r}
+
 #### MERGED DATA #### 
 phy_glom_Genus_merged<-readRDS('./phy_glom_Genus_merged.rds')
 
@@ -109,20 +99,20 @@ V1V2_phyloseq=readRDS("./V1V2_phyloseq")
 V3V4_phyloseq=readRDS("./V3V4_phyloseq")
 V4V5_phyloseq=readRDS("./V4V5_phyloseq")
 
-#V1V2
+# V1V2
 bray_dist_V1V2 <- phyloseq::distance(V1V2_phyloseq, "bray")
 metadata_V1V2<- metadata_merged%>%
                   filter(Primers=="V1V2")
-#Run PERMANOVA on distances
+# Run PERMANOVA on distances
 adonis_V1V2 <- adonis2(bray_dist_V1V2 ~ Tissue_type+Jellyfish_number , data= metadata_V1V2, perm = 999)
 
-#V3V4
+# V3V4
 bray_dist_V3V4 <- phyloseq::distance(V3V4_phyloseq, "bray")
 metadata_V3V4 <- metadata_merged%>%
                   filter(Primers=="V3V4")
 adonis_V3V4 <- adonis2(bray_dist_V3V4 ~ Tissue_type+Jellyfish_number , data= metadata_V3V4, perm = 999)
 
-#V4V5
+# V4V5
 bray_dist_V4V5 <- phyloseq::distance(V4V5_phyloseq, "bray")
 metadata_V4V5 <- metadata_merged%>%
                   filter(Primers=="V4V5")
@@ -131,4 +121,3 @@ adonis_V4V5 <- adonis2(bray_dist_V4V5 ~ Tissue_type+Jellyfish_number , data= met
 write.csv(adonis_V1V2,'./adonis_V1V2.csv')
 write.csv(adonis_V3V4,'./adonis_V3V4.csv')
 write.csv(adonis_V4V5,'./adonis_V4V5.csv')
-```
