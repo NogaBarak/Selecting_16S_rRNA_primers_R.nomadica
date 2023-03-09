@@ -1,0 +1,165 @@
+---
+title: "NMDS analysis"
+output: html_notebook
+---
+```{r}
+library("dplyr")
+library('phyloseq')
+library('ggplot2')
+library('ggpubr')
+library('tibble')
+library('vegan')
+```
+#### NMDS FOR EACH PRIMER SEPARATELY ####
+```{r}
+# Create a list of file paths for the phyloseq objects
+file_paths <- c("./V1V2_phyloseq", "./V3V4_phyloseq", "./V4V5_phyloseq")
+# Create an empty list to store the results
+results <- list()
+
+# Loop over the file paths
+for (file_path in file_paths) {
+  
+  # Read in the phyloseq object
+  phy_obj <- readRDS(file_path)%>%
+             transform_sample_counts(., function(otu) otu/sum(otu)*100)%>%
+             prune_samples(sample_sums(.) > 0, .)
+  
+  # Calculate Bray-Curtis dissimilarity matrix
+  nmds_obj <- ordinate(phy_obj, method = "NMDS", distance = "bray")
+  # Extract the NMDS coordinates for each sample
+  nmds_coords <- nmds_obj$points %>%
+    data.frame() %>%
+    mutate(Sample_ID = row.names(.))
+  
+  # Extract metadata from the phyloseq object
+  metadata <- sample_data(phy_obj) %>%
+    data.frame() %>%
+    mutate(Sample_ID = row.names(.),
+           Tissue_type=case_when(
+                               grepl("Water",Tissue_type)~"Sea water",
+                               grepl("Gastrovascular canals",Tissue_type)~"GVC", 
+                   TRUE ~ Tissue_type),
+           Jellyfish_number=case_when(
+                   TRUE ~ Jellyfish_number))
+  
+  # Merge metadata with NMDS coordinates
+  nmds_coords <- left_join(nmds_coords, metadata, by = "Sample_ID")
+  
+  # Add the result to the list
+  results[[file_path]] <- nmds_coords
+}
+
+# Combine the results into a single data frame
+nmds_all_primers <- do.call(rbind, results)
+```
+#### Plot NMDS ordination ####
+```{r}
+ggplot(nmds_all_primers, aes(x = MDS1, y = MDS2,shape = Jellyfish_number, color = Tissue_type)) +
+ geom_point(size=2)+ 
+scale_shape_manual(values =Jelly_shape)+
+scale_color_manual(values =Tissue_color)+
+  theme_bw() +
+    facet_wrap(vars(Primers), scales = "free") +
+  theme(text = element_text(size = 10), 
+        axis.title = element_text(face = "bold", size = 10),
+        legend.title = element_text(face = "bold", size = 10),
+        strip.text = element_text(face = "bold", size = 10),
+        strip.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  labs(x = "NMDS1", y = "NMDS2", 
+       shape = "Jellyfish ID", color = "Tissue Type")
+ 
+ggsave("./fig_4A.pdf",
+       units = "cm", 
+       width = 20, 
+       height = 6,
+       dpi=300)
+```
+#### NMDS MERGED BY TAXA ####
+```{r}
+
+file_paths <- c("./V1V2_phyloseq", "./V3V4_phyloseq", "./V4V5_phyloseq")
+
+# Create an empty list to store the results
+phy_objs <- list()
+
+# Loop over the file paths
+for (file_path in file_paths) {
+  
+# Read in the phyloseq object
+ phy_obj <- readRDS(file_path) %>%
+  transform_sample_counts(., function(x) x/sum(x))
+ 
+  glom_Genus <- tax_glom(phy_obj, taxrank = "Genus")
+
+  taxa_names(glom_Genus) <- tax_table(glom_Genus)[,"Genus"]
+  
+# Get the name of the sample
+  sample_name <- gsub("_phyloseq", "", basename(file_path))
+  
+# Add the sample name to the sample names of the merged object
+  sample_names(glom_Genus) <- paste(sample_names(glom_Genus), sample_name, sep = "_")
+  
+# Add the merged object to the list
+  phy_objs[[sample_name]] <- glom_Genus
+}
+
+# Combine all the merged objects into one phyloseq object
+V1V2_tax_glom <- phy_objs[[1]]
+V3V4_tax_glom <- phy_objs[[2]]
+V4V5_tax_glom <- phy_objs[[3]]
+
+saveRDS(V1V2_tax_glom,"./V1V2_tax_glom.rds")
+saveRDS(V3V4_tax_glom,"./V3V4_tax_glom.rds")
+saveRDS(V4V5_tax_glom,"./V4V5_tax_glom.rds")
+
+
+phy_glom_Genus_merged<-merge_phyloseq(V1V2_tax_glom,V3V4_tax_glom,V4V5_tax_glom)
+saveRDS(phy_glom_Genus_merged,"./phy_glom_Genus_merged.rds")
+uncl_taxa <- subset_taxa(phy_glom_Genus_merged, grepl("_uncl", taxa_names(phy_glom_Genus_merged)))
+
+# Calculate Bray-Curtis dissimilarity matrix
+  nmds_merged <- ordinate(phy_glom_Genus_merged, method = "NMDS", distance = "bray")
+# Extract the NMDS coordinates for each sample
+  nmds_coords_only_merged <- nmds_merged$points %>%
+    data.frame() %>%
+    mutate(Sample_ID = row.names(.))
+  
+# Extract metadata from the phyloseq object
+  metadata_merged <- sample_data(phy_glom_Genus_merged) %>%
+    data.frame() %>%
+    mutate(Sample_ID = row.names(.),
+           Tissue_type=case_when(
+                               grepl("W",Sample_ID)~"Sea water",
+                               grepl("Gastrovascular canals",Tissue_type)~"GVC", 
+                   TRUE ~ Tissue_type))
+  
+  # Merge metadata with NMDS coordinates
+nmds_coords_merged <- left_join(nmds_coords_only_merged, metadata_merged, by = "Sample_ID")
+```
+#### Plot NMDS ordination merged ####
+```{r}
+ggplot(nmds_coords_merged, aes(x = MDS1, y = MDS2,shape = Primers, color = Tissue_type)) +
+ geom_point(size=3)+ 
+scale_color_manual(values =Tissue_color)+
+  theme_bw() +
+  theme(text = element_text(size = 12), 
+        axis.title = element_text(face = "bold", size = 12),
+        legend.title = element_text(face = "bold", size = 12),
+        strip.text = element_text(face = "bold", size = 14),
+        strip.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.spacing = unit(2, "lines"))+
+  labs(x = "NMDS1", y = "NMDS2", 
+       shape = "Primers", color = "Tissue Type")
+ 
+ggsave("./fig.4B.pdf",
+       units = "cm", 
+       width = 15, 
+       height = 10,
+       dpi=300)
+```
+
