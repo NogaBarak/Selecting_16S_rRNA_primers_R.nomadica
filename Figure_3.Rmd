@@ -1,0 +1,60 @@
+---
+title: "Alpha diversity analysis"
+output: html_notebook
+---
+```{r}
+library("dplyr")
+library('phyloseq')
+library('ggplot2')
+library('ggpubr')
+library('reshape2')
+library('tibble')
+
+```
+#### Create richness table for all primers ####
+```{r}
+richness_v1v2<-readRDS("./V1V2_phyloseq")%>%
+          estimate_richness()%>%
+          mutate(Primer='V1V2')
+richness_v3v4<-readRDS("./V3V4_phyloseq")%>%
+          estimate_richness()%>%
+          mutate(Primer='V3V4')
+richness_v4v5<-readRDS("./V4V5_phyloseq")%>%
+          estimate_richness()%>%
+          mutate(Primer='V4V5')
+
+richness_all_primers <- rbind(richness_v1v2,richness_v3v4,richness_v4v5) %>%
+                        rownames_to_column(var = "name") %>%
+                        mutate(Tissue_type = case_when(
+                         grepl("B",name) ~ "Bell",
+                         grepl("T",name) ~ "Tentacles",
+                         grepl("G",name) ~ "Gonads",
+                         grepl("V",name) ~ "GVC",
+                         grepl("R",name) ~ "Rhopalium",
+                         grepl("WD",name)~'Sea water'))%>%
+                        select(Observed,Simpson,Primer,Tissue_type)%>%
+                        melt()
+```
+
+```{r}
+ggplot(richness_all_primers, aes(y = value, x = Primer, color = Primer)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(shape = Tissue_type), size = 2) +
+  scale_color_manual(values = Primer_color) +
+  scale_shape_manual(values = Tissue_shape) +
+  facet_wrap(vars(variable), scales = "free") +
+  theme_pubr() +
+  theme(text = element_text(size = 10),
+           axis.title = element_text(face = "bold", size = 10),
+      legend.title = element_text(face = "bold", size = 10),
+        legend.position = "right",
+        strip.text = element_blank()) +
+   ylab("ASVs number")+
+   xlab("")
+
+ggsave("./fig_3.pdf",
+       units = "mm", 
+       width = 160, 
+       height = 90,
+       dpi=300)
+```
