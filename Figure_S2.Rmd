@@ -1,0 +1,187 @@
+```{r}
+library('phyloseq')
+library("dplyr")
+library('ggplot2')
+library('ggpubr')
+library('forcats')
+```
+### Modify V1V2 Phyloseq ###
+```{r}
+V1V2_phyloseq_modified<-readRDS("./V1V2_phyloseq")
+tax_table(V1V2_phyloseq_modified)["ASV2", ] <- c("Bacteria", "Proteobacteria" ,"Alphaproteobacteria","Rickettsiales","Rickettsiales_uncl","Rickettsiales_uncl","Rickettsiales_uncl") 
+tax_table(V1V2_phyloseq_modified)["ASV4", ]<- c("Bacteria", "Firmicutes","Bacilli","Bacilli_uncl","Bacilli_uncl","Bacilli_uncl" ,"Bacilli_uncl") 
+
+tax_table(V1V2_phyloseq_modified)[1:10, ]
+                                                
+saveRDS(V1V2_phyloseq_modified,"V1V2_phyloseq_modified")
+```
+```{r}
+file_paths <- c("./V1V2_phyloseq_modified", "./V3V4_phyloseq", "./V4V5_phyloseq")
+
+# Create an empty list to store the results
+phy_objs <- list()
+
+# Loop over the file paths
+for (file_path in file_paths) {
+  
+# Read in the phyloseq object
+ phy_obj <- readRDS(file_path) %>%
+  transform_sample_counts(., function(x) x/sum(x))
+ 
+  glom_Genus <- tax_glom(phy_obj, taxrank = "Genus")
+
+  taxa_names(glom_Genus) <- tax_table(glom_Genus)[,"Genus"]
+  
+# Get the name of the sample
+  sample_name <- gsub("_phyloseq", "", basename(file_path))
+  
+# Add the sample name to the sample names of the merged object
+  sample_names(glom_Genus) <- paste(sample_names(glom_Genus), sample_name, sep = "_")
+  
+# Add the merged object to the list
+  phy_objs[[sample_name]] <- glom_Genus
+}
+
+# Combine all the merged objects into one phyloseq object
+V1V2_tax_glom <- phy_objs[[1]]
+V3V4_tax_glom <- phy_objs[[2]]
+V4V5_tax_glom <- phy_objs[[3]]
+
+saveRDS(V1V2_tax_glom,"./V1V2_tax_glom_modified.rds")
+saveRDS(V3V4_tax_glom,"./V3V4_tax_glom.rds")
+saveRDS(V4V5_tax_glom,"./V4V5_tax_glom.rds")
+
+
+phy_glom_Genus_merged<-merge_phyloseq(V1V2_tax_glom,V3V4_tax_glom,V4V5_tax_glom)
+
+# Calculate Bray-Curtis dissimilarity matrix
+  nmds_merged <- ordinate(phy_glom_Genus_merged, method = "NMDS", distance = "bray")
+# Extract the NMDS coordinates for each sample
+  nmds_coords_only_merged <- nmds_merged$points %>%
+    data.frame() %>%
+    mutate(Sample_ID = row.names(.))
+  
+# Extract metadata from the phyloseq object
+  metadata_merged <- sample_data(phy_glom_Genus_merged) %>%
+    data.frame() %>%
+    mutate(Sample_ID = row.names(.),
+           Tissue_type=case_when(
+                               grepl("W",Sample_ID)~"Sea water",
+                               grepl("Gastrovascular canals",Tissue_type)~"GVC", 
+                   TRUE ~ Tissue_type))
+  
+  # Merge metadata with NMDS coordinates
+nmds_coords_merged <- left_join(nmds_coords_only_merged, metadata_merged, by = "Sample_ID")
+```
+
+#### Plot NMDS ordination merged ####
+```{r}
+ggplot(nmds_coords_merged, aes(x = MDS1, y = MDS2,shape = Primers, color = Tissue_type)) +
+ geom_point(size=3)+ 
+scale_color_manual(values =Tissue_color)+
+  theme_bw() +
+  theme(text = element_text(size = 12), 
+        axis.title = element_text(face = "bold", size = 12),
+        legend.title = element_text(face = "bold", size = 12),
+        strip.text = element_text(face = "bold", size = 14),
+        strip.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.spacing = unit(2, "lines"))+
+  labs(x = "NMDS1", y = "NMDS2", 
+       shape = "Primers", color = "Tissue Type")
+ 
+ggsave("./fig.S2A.pdf",
+       units = "cm", 
+       width = 15, 
+       height = 10,
+       dpi=300)
+```
+
+```{r}
+# Create a list with the phyloseq objects and their corresponding names
+phyloseqs <- list(
+  V1V2_phyloseq_modified = "./V1V2_phyloseq_modified",
+  V3V4_phyloseq = "./V3V4_phyloseq",
+  V4V5_phyloseq = "./V4V5_phyloseq"
+)
+
+# Initialize an empty list to store the results
+order_abund_list <- list()
+
+# Loop through the list of phyloseq objects
+for (i in seq_along(phyloseqs)) {
+  
+  # Read in the phyloseq object
+  phyloseq_obj <- readRDS(phyloseqs[[i]])
+  
+  # Transform the sample counts to relative abundance
+  rel_abund <- transform_sample_counts(phyloseq_obj, function(x) x / sum(x) * 100)
+  
+  # Reshape the data from wide to long format
+  rel_abund_long <- psmelt(rel_abund) %>%
+    mutate(Sample_name = case_when(
+           grepl("Water", Sample_name) ~ "Sea water",
+           grepl("Gastrovascular canals-J45", Sample_name) ~ "GVC-J45",
+           grepl("Gastrovascular canals-J47", Sample_name) ~ "GVC-J47",
+           grepl("Gastrovascular canals-J50", Sample_name) ~ "GVC-J50",
+           TRUE ~ Sample_name),
+           Order = case_when(grepl("SAR324", Order) ~ "SAR324",
+           TRUE ~ Order))
+  
+  # Group by Sample_name, Order, and Primers, and calculate the total abundance for each group
+  order_abund <- rel_abund_long %>%
+    select(Sample_name, OTU, Order, Abundance, Primers) %>%
+    group_by(Sample_name, Order, Primers) %>%
+    summarise(Abund.total = sum(Abundance))
+  
+  # Append the results to the list
+  order_abund_list[[i]] <- order_abund
+}
+
+# Combine the results from all three phyloseq objects into a single data frame
+Primer_combined_Order <- do.call(rbind, order_abund_list)
+
+# Identify all unique Orders
+Order_all <- unique(Primer_combined_Order$Order)
+
+# Set all Orders with total abundance < 2% to "Other taxa"
+Primer_combined_Order$Order[Primer_combined_Order$Abund.total < 2] <- "Other taxa"
+
+# Factorize the Order column with the original levels and the "Other taxa" level
+Primer_combined_Order$Order <- factor(
+  Primer_combined_Order$Order,
+  levels = c(Order_all, "Other taxa")
+)
+# Drop unused levels
+Primer_combined_Order$Order <- droplevels(Primer_combined_Order$Order)
+```
+
+```{r}
+Primer_combined_Order <- Primer_combined_Order %>%
+  mutate(Order = reorder(Order, Abund.total),
+         Order = fct_rev(factor(Order)),
+         Order = fct_relevel(Order, "Other taxa", after = Inf),
+         Sample_name =fct_relevel(Sample_name, "Sea water", after = 0))
+
+ggplot(Primer_combined_Order, aes(y=Sample_name, x=Abund.total,fill=Order))+
+  facet_wrap(~Primers)+
+  geom_bar(position="stack", stat="identity")+
+  scale_fill_manual(values =colors_order_all)+
+  theme_pubr() +
+  theme(text = element_text(size = 10),
+        legend.key.size = unit(2, 'mm'),
+        axis.title = element_text(face = "bold", size = 10),
+        legend.title = element_text(face = "bold", size = 10),
+        strip.text = element_text(face = "bold", size = 10),
+        strip.background = element_blank(),
+        legend.position = "top") +
+  guides(fill = guide_legend("Order",ncol = 5))+
+  xlab("Relative sequences abundance (%)") + ylab("Tissue type")
+
+ggsave("./fig.S2B.pdf",
+       units = "mm", 
+       width = 180, 
+       height = 100,
+       dpi=300)
+```
