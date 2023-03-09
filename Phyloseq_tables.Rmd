@@ -1,35 +1,23 @@
----
-title: "Number of reads left after DADA2 analysis"
-output: html_notebook
----
-
-```{r}
 library(phyloseq)
 library(vegan)
 library(ggplot2)
 library(dplyr)
-```
 
-#### Data for V1V2,V3V4 and V4V5
-```{r}
-setwd("C:/Users/Noga/OneDrive - University of Haifa/Noga Phd/Jellyfish_research/16s_analysis/Primer_comparison")
-#V1V2
+#### Upload data for V1V2,V3V4 and V4V5 ####
+##V1V2##
 ASVs_tab_V1V2<- read.csv("./V1V2/ASV_V1V2_seqtab.csv", h=T, row.names = 1)
 TAX_tab_V1V2<- as.matrix(read.csv("./V1V2/Taxonomy_V1V2_table.csv", h=T, row.names = 1))
 Metadata_V1V2 <- read.csv("./V1V2/MetadataV1V2.csv", h = T, row.names = 1)
-#V3V4
+##V3V4##
 ASVs_tab_V3V4<- read.csv("./V3V4/ASV_V3V4_seqtab.csv", h=T, row.names = 1)
 TAX_tab_V3V4<- as.matrix(read.csv("./V3V4/Taxonomy_V3V4_table.csv", h=T, row.names = 1))
 Metadata_V3V4 <- read.csv("./V3V4/MetadataV3V4.csv", h = T, row.names = 1)
-#V4V5
+##V4V5##
 ASVs_tab_V4V5<- read.csv("./V4V5/ASV_V4V5_seqtab.csv", h=T, row.names = 1)
 TAX_tab_V4V5<- as.matrix(read.csv("./V4V5/Taxonomy_V4V5_table.csv", h=T, row.names = 1))
 Metadata_V4V5 <- read.csv("./V4V5/MetadataV4V5.csv", h = T, row.names = 1)
-```
 
-
-#### __Add unclassified sign to missing taxa__ ####
-```{r echo=TRUE, eval=TRUE}
+#### Add unclassified sign to missing taxa ####
 # Create a list of data frames
 TAX_tabs <- list(TAX_tab_V1V2, TAX_tab_V3V4, TAX_tab_V4V5)
 
@@ -61,16 +49,12 @@ for (i in seq_along(TAX_tabs)) {
   
  TAX_tabs_list[[i]]<- TAX_tabs[[i]]
 }
-
 # Assign each Phyloseq object to a separate variable
 TAX_tab_V1V2_nna <- TAX_tabs_list[[1]]
 TAX_tab_V3V4_nna <- TAX_tabs_list[[2]]
 TAX_tab_V4V5_nna <- TAX_tabs_list[[3]]
 
-```
-#### __Filter data and create phyloseq tables__ ####
-```{r echo=TRUE, eval=TRUE}
-# create a list of ASV and Taxonomy tables
+#### Filter data and create phyloseq tables ####
 ASVs_tabs_list <- list(ASVs_tab_V1V2, ASVs_tab_V3V4, ASVs_tab_V4V5)
 TAX_tabs_list <- list(TAX_tab_V1V2_nna, TAX_tab_V3V4_nna, TAX_tab_V4V5_nna)
 Meta_tabs_list <- list(Metadata_V1V2, Metadata_V3V4, Metadata_V4V5)
@@ -95,8 +79,8 @@ phyloseq_list <- lapply(seq_along(TAX_tabs_list), function(i) {
 V1V2_phyloseq <- phyloseq_list[[1]]
 V3V4_phyloseq <- phyloseq_list[[2]]
 V4V5_phyloseq <- phyloseq_list[[3]]
-# Save phlyoseq objects
+
+#### Save phlyoseq objects ####
 saveRDS(V1V2_phyloseq,"./V1V2_phyloseq")
 saveRDS(V3V4_phyloseq,"./V3V4_phyloseq")
 saveRDS(V4V5_phyloseq,"./V4V5_phyloseq")
-```
