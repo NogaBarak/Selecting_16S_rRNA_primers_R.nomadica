@@ -1,25 +1,17 @@
----
-title: "R Notebook"
-output: html_notebook
----
-
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-```{r}
 library('ggplot2')
 library('ggpubr')
 library('utils')
 library('dplyr')
-```
 
-```{r}
+#### Upload Cnidaria file ####
 cindaria_primer<- read.csv("./Cnidaria_primers_papers.csv",h=T)
 
+## Count number of primers for each organism ##
 primers_count <- cindaria_primer %>%
   group_by(Cnidaria_type, Primers) %>%
   summarize(count = n())
 
+## Plot data ##
 ggplot(primers_count, aes(y=count, x=Primers, fill=factor(Cnidaria_type,levels=c('Jellyfish','Coral','Sea anemone','Hydrozoa'))))+
   geom_bar(position="stack", stat="identity",color='black')+
   scale_fill_manual(values = cindaria_color)+
@@ -35,9 +27,9 @@ ggplot(primers_count, aes(y=count, x=Primers, fill=factor(Cnidaria_type,levels=c
   guides(fill = guide_legend(""))+
   xlab("Primers") + ylab("Number of studies") 
 
+## Save to pdf ##
 ggsave("./fig_1.pdf",
        units = "mm", 
        width = 80, 
        height = 80,
        dpi=300)
-```
