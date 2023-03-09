@@ -1,0 +1,43 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+library('ggplot2')
+library('ggpubr')
+library('utils')
+library('dplyr')
+```
+
+```{r}
+cindaria_primer<- read.csv("./Cnidaria_primers_papers.csv",h=T)
+
+primers_count <- cindaria_primer %>%
+  group_by(Cnidaria_type, Primers) %>%
+  summarize(count = n())
+
+ggplot(primers_count, aes(y=count, x=Primers, fill=factor(Cnidaria_type,levels=c('Jellyfish','Coral','Sea anemone','Hydrozoa'))))+
+  geom_bar(position="stack", stat="identity",color='black')+
+  scale_fill_manual(values = cindaria_color)+
+  scale_y_continuous(breaks = seq(0,40, by = 5)) + # add more y-axis ticks
+  scale_x_discrete(limits = c("V4","V3V4","V5V6",'V1V3','V1V2',"V4V5","V6","V6V8","V1V4",'V3'))+
+  theme_pubr() +
+  theme(text = element_text(size = 10),
+        legend.key.size = unit(3, 'mm'),
+        axis.title = element_text(face = "bold", size = 10),
+        legend.title = element_text(face = "bold", size = 10),
+        axis.text.x = element_text(angle = 45,hjust = 1),
+        legend.position = "bottom")+
+  guides(fill = guide_legend(""))+
+  xlab("Primers") + ylab("Number of studies") 
+
+ggsave("./fig_1.pdf",
+       units = "mm", 
+       width = 80, 
+       height = 80,
+       dpi=300)
+```
