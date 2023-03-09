@@ -1,0 +1,72 @@
+---
+title: "Post DADA2 analysis"
+output: html_notebook
+---
+```{r}
+library("dplyr")
+library('rstatix')
+library('ggplot2')
+library('ggpubr')
+library('tibble')
+```
+```{r}
+Track_V1V2<-readRDS("./Track_V1V2.rds")%>%
+              data.frame() %>%
+              mutate(Primer="V1V2",
+                     name='A') %>%
+              select (c(input,table,Primer))
+
+Track_V3V4<-readRDS("./Track_V3V4.rds")%>%
+              data.frame() %>%
+              mutate(Primer="V3V4") %>%
+              select (c(input,table,Primer))
+
+Track_V4V5<-readRDS("./Track_V4V5.rds")%>%
+              data.frame() %>%
+              mutate(Primer="V4V5") %>%
+              select (c(input,table,Primer))
+
+Track_all_primers <- rbind(Track_V1V2,Track_V3V4,Track_V4V5)%>%
+                  rownames_to_column(var = "name") %>%
+                  mutate(Survivors= table/input*100,
+                         Tissue_type = case_when(
+                         grepl("B",name) ~ "Bell",
+                         grepl("T",name) ~ "Tentacles",
+                         grepl("G",name) ~ "Gonads",
+                         grepl("V",name) ~ "GVC",
+                         grepl("R",name) ~ "Rhopalium",
+                         grepl("WD",name)~'Sea water'))
+
+```
+
+```{r}
+# Pairwise comparisons
+pwc <- Track_all_primers %>% 
+  dunn_test(Survivors ~ Primer, p.adjust.method = "bonferroni") 
+pwc
+
+pwc <- pwc %>% add_xy_position(x = "Primer")
+
+ggplot(Track_all_primers,aes(x=Primer, y=Survivors,color=Primer))+
+   geom_boxplot(outlier.shape = NA)+
+  labs(color = "Jellyfish tissues types")+
+  theme_pubr()+
+   geom_jitter(size=3,aes(shape = Tissue_type))+
+   guides(shape=guide_legend(title='Tissue type'),color=guide_legend(title='Primers'))+
+   scale_color_manual(values = c("#440154ff", '#21908dff', '#d18904'))+
+   scale_shape_manual(values=Tissue_shape)+ 
+  ylab("ASVs number")+ 
+  ylab("Number of reads left after DADA2 (%)")+  
+  stat_pvalue_manual(pwc, label = "p.adj.signif", tip.length = 0.01, y.position =c(90,95,100),size=5)+ 
+  theme(text = element_text(size = 10),
+        axis.title = element_text(face = "bold", size = 10),
+        legend.title = element_text(face = "bold", size = 10), 
+        axis.title.x=element_blank(),
+        legend.position="right")
+
+ggsave("./fig_2.pdf",
+       units = "cm", 
+       width = 11, 
+       height = 10,
+       dpi=300)
+```
