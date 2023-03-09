@@ -12,9 +12,8 @@ fnFs <- sort(list.files(path, pattern="R1.", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="R2.", full.names = TRUE)) 
 sample.names <- sapply(strsplit(basename(fnFs), "_R1"),'[',1)
 
-#### __Set a new path__ ####
-Set a new path to where the trimed fastq file will be uploaded
-```{r echo=TRUE, eval=FALSE}
+#### Set a new path ####
+#Set a new path to where the trimed fastq file will be uploaded
 filt_path <- file.path(path, "Report")
 if(!file_test("-d", filt_path)) dir.create(filt_path)
 filtFs <- file.path(filt_path, paste(sample.names, "_F_filt.fastq.gz"))
