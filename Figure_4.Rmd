@@ -1,17 +1,13 @@
----
-title: "NMDS analysis"
-output: html_notebook
----
-```{r}
 library("dplyr")
 library('phyloseq')
 library('ggplot2')
 library('ggpubr')
 library('tibble')
 library('vegan')
-```
+
+#########################################
 #### NMDS FOR EACH PRIMER SEPARATELY ####
-```{r}
+#########################################
 # Create a list of file paths for the phyloseq objects
 file_paths <- c("./V1V2_phyloseq", "./V3V4_phyloseq", "./V4V5_phyloseq")
 # Create an empty list to store the results
@@ -52,9 +48,8 @@ for (file_path in file_paths) {
 
 # Combine the results into a single data frame
 nmds_all_primers <- do.call(rbind, results)
-```
+
 #### Plot NMDS ordination ####
-```{r}
 ggplot(nmds_all_primers, aes(x = MDS1, y = MDS2,shape = Jellyfish_number, color = Tissue_type)) +
  geom_point(size=2)+ 
 scale_shape_manual(values =Jelly_shape)+
@@ -76,10 +71,9 @@ ggsave("./fig_4A.pdf",
        width = 20, 
        height = 6,
        dpi=300)
-```
+#############################
 #### NMDS MERGED BY TAXA ####
-```{r}
-
+#############################
 file_paths <- c("./V1V2_phyloseq", "./V3V4_phyloseq", "./V4V5_phyloseq")
 
 # Create an empty list to store the results
@@ -111,11 +105,12 @@ V1V2_tax_glom <- phy_objs[[1]]
 V3V4_tax_glom <- phy_objs[[2]]
 V4V5_tax_glom <- phy_objs[[3]]
 
+# Save data for each primers 
 saveRDS(V1V2_tax_glom,"./V1V2_tax_glom.rds")
 saveRDS(V3V4_tax_glom,"./V3V4_tax_glom.rds")
 saveRDS(V4V5_tax_glom,"./V4V5_tax_glom.rds")
 
-
+#### Combine all data to one phyloseq object and save for latet use ####
 phy_glom_Genus_merged<-merge_phyloseq(V1V2_tax_glom,V3V4_tax_glom,V4V5_tax_glom)
 saveRDS(phy_glom_Genus_merged,"./phy_glom_Genus_merged.rds")
 uncl_taxa <- subset_taxa(phy_glom_Genus_merged, grepl("_uncl", taxa_names(phy_glom_Genus_merged)))
@@ -136,11 +131,10 @@ uncl_taxa <- subset_taxa(phy_glom_Genus_merged, grepl("_uncl", taxa_names(phy_gl
                                grepl("Gastrovascular canals",Tissue_type)~"GVC", 
                    TRUE ~ Tissue_type))
   
-  # Merge metadata with NMDS coordinates
+# Merge metadata with NMDS coordinates
 nmds_coords_merged <- left_join(nmds_coords_only_merged, metadata_merged, by = "Sample_ID")
-```
+
 #### Plot NMDS ordination merged ####
-```{r}
 ggplot(nmds_coords_merged, aes(x = MDS1, y = MDS2,shape = Primers, color = Tissue_type)) +
  geom_point(size=3)+ 
 scale_color_manual(values =Tissue_color)+
