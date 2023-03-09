@@ -1,44 +1,26 @@
----
-title: "DADA2-Primer comparison"
-author: "Noga Barak"
-date: "2023-02-20"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ### Upload library for DADA2 analysis ###
-```{r}
 library(dada2)
 library(phyloseq)
 library(dplyr)
 library(gridExtra)
 library(readr)
-```
 
 #### Import seq ####
-```{r echo=TRUE, eval=FALSE}
 path <- ("./V4V5/Raw_data")
 list.files(path) 
 fnFs <- sort(list.files(path, pattern="R1.", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="R2.", full.names = TRUE)) 
-sample.names <- sapply(strsplit(basename(fnFs), "_R1"),'[',1) 
-```
+sample.names <- sapply(strsplit(basename(fnFs), "_R1"),'[',1)
 
-#### __Set a new path__ ####
-Set a new path to where the trimed fastq file will be uploaded
-```{r echo=TRUE, eval=FALSE}
+#### Set a new path ####
+#Set a new path to where the trimed fastq file will be uploaded
 filt_path <- file.path(path, "Report")
 if(!file_test("-d", filt_path)) dir.create(filt_path)
 filtFs <- file.path(filt_path, paste(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(filt_path, paste(sample.names, "_R_filt.fastq.gz"))
 head(filtRs)
-```
 
 #### quality check #### 
-```{r echo=TRUE, eval=FALSE}
 QualityProfileFs <- list()
 for(i in 1:length(fnFs)) {
   QualityProfileFs[[i]] <- list()
@@ -62,86 +44,70 @@ for(i in 1:length(fnRs)) {
 }
 dev.off()
 rm(QualityProfileRs)
-```
-#### __Assign filtering parameters__ ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Assign filtering parameters ####
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),
                      maxN=0, maxEE=c(3,5), truncQ=2, rm.phix=TRUE, trimLeft=c(20,18),
                      compress=TRUE, multithread=FALSE)
 out
-```
-#### __Let dada learn the error rates__ ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Let dada learn the error rates__ ####
 errF <- learnErrors(filtFs, multithread=TRUE, MAX_CONSIST=20, verbose=TRUE, randomize=TRUE)
 errR <- learnErrors(filtRs, multithread=TRUE, MAX_CONSIST=20, verbose=TRUE, randomize=TRUE)
-```
 
-#### __Combine all sequences replicates to a unique object__ ####
-```{r echo=TRUE, eval=FALSE}
+#### Combine all sequences replicates to a unique object ####
 derepFs <- derepFastq(filtFs, verbose=TRUE)
 derepRs <- derepFastq(filtRs, verbose=TRUE)
-```
 
-#### __renaming__ ####
-for further analysis, dada must have the same sample names for both F and R reads
-```{r echo=TRUE, eval=FALSE}
+#### Renaming ####
+#for further analysis, dada must have the same sample names for both F and R reads
 names(derepFs) <- sample.names
 names(derepRs) <- sample.names
-```
-#### __ Let dada make its magic__ ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Let dada make its magic ####
 dadaFs <- dada(derepFs, errF, multithread=TRUE)
 dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
 dadaFs[1]
-```
-#### __Merge F and R reads to one amazing Sequence__ ####
-```{r echo=TRUE}
+
+#### Merge F and R reads to one amazing Sequence####
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE,minOverlap = 8)
 head(mergers[[1]])
-```
-#### __Create an ASV table__ ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Create an ASV table ####
 seqtab_V4V5 <- makeSequenceTable(mergers)
 dim(seqtab_V4V5 )
 table(nchar(getSequences(seqtab_V4V5)))
-```
-#### __remove chimeras__ ####
+
+#### Remove chimeras ####
 * calculation of the abundance as a proportion of the sequences that were after chimera removel
 * Inspect distribution of sequence length
-```{r echo=TRUE, eval=FALSE}
 seqtab.nochim_V4V5 <- removeBimeraDenovo(seqtab_V4V5, method="consensus", multithread=TRUE, verbose=TRUE)
 sum(seqtab.nochim_V4V5)/sum(seqtab_V4V5)
 table(nchar(getSequences(seqtab.nochim_V4V5)))
-```
-#### remove singletons and 'junk' sequences ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Remove singletons and 'junk' sequences ####
 seqtab.nochim_V4V5_2 <- seqtab.nochim_V4V5[, nchar(colnames(seqtab.nochim_V4V5)) %in% c(366:379) & colSums(seqtab.nochim_V4V5) > 1]
 dim(seqtab.nochim_V4V5_2)
 summary(rowSums(seqtab.nochim_V4V5_2)/rowSums(seqtab.nochim_V4V5))
-```
-#### __Summarizing the work flow in one table__ ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Summarizing the work flow in one table ####
 getN <- function(x) sum(getUniques(x))
 track_V4V5<- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim_V4V5),rowSums(seqtab.nochim_V4V5_2))
 colnames(track_V4V5) <- c("input", "filtered", "denoisedF", "denoisedR", "merged","nonchim","table")
 rownames(track_V4V5) <- sample.names
 write.csv(track_V4V5,'./V4V5/Track_V4V5.csv')
 saveRDS(track_V4V5,'./Track_V4V5.rds')
-```
-#### __Assign taxonomy__ ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Assign taxonomy ####
 taxa_V4V5 <- assignTaxonomy(seqtab.nochim_V4V5_2, "./Database/silva_nr99_v138.1_train_set.fa.gz", multithread=TRUE)
 taxa_V4V5 <- addSpecies(taxa_V4V5, "./Database/silva_species_assignment_v138.1.fa.gz") #assign species
 head(taxa_V4V5)
-```
-#### __get a readable tabulated format of the analysis__ ####
-```{r echo=TRUE, eval=FALSE}
+
+#### Get a readable tabulated format of the analysis ####
 write.csv(t(seqtab.nochim_V4V5_2),"./V4V5/ASV_V4V5_seqtab.csv", quote = F)
 write.csv(taxa_V4V5,"./V4V5/Taxonomy_V4V5_table.csv", quote = F)
 dataps_V4V5=cbind(as.data.frame(t(seqtab.nochim_V4V5_2)), as.data.frame(taxa_V4V5))
 write.csv(dataps_V4V5 ,"./V4V5/Taxonoy_ASV_V4V5_table.csv")
-```
+
 #### Save work enviroment ####
-```{r echo=TRUE, eval=FALSE}
 save.image("./V4V5_dada2_runs.Rdata")
-```
