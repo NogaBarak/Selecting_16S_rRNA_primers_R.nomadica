@@ -1,0 +1,134 @@
+---
+title: "Dissimilarity Stat"
+output: html_notebook
+---
+```{r}
+library("dplyr")
+library('phyloseq')
+library('vegan')
+library('pairwiseAdonis')
+```
+##########################
+### Dissimilarity Stat ###
+##########################
+```{r}
+#### MERGED DATA #### 
+phy_glom_Genus_merged<-readRDS('./phy_glom_Genus_merged.rds')
+
+## PERMANOVA ##
+# Calculate distance and save as a matrix
+bray_dist<- phyloseq::distance(phy_glom_Genus_merged, "bray")
+
+# Run PERMANOVA on distances
+adonis_all <- adonis2(bray_dist ~ Primers+Tissue_type , data= metadata_merged, perm = 999)
+adonis_all
+write.csv(adonis_all,'./adonis_all.csv')
+
+# Pairwise
+pairwise_adoins_primers<-pairwise.adonis(bray_dist,metadata_merged$Primer)
+pairwise_adoins_tissue<-pairwise.adonis(bray_dist,metadata_merged$Tissue_type)
+
+## V1V2 VS V3V4 ##
+Genus_merged_V1V2_V3V4 <-phy_glom_Genus_merged%>%
+                          subset_samples(.,Primers %in% c("V3V4","V1V2"))
+bray_dist_V1V2_V3V4<- as.matrix(phyloseq::distance(Genus_merged_V1V2_V3V4, "bray"))
+meta_V1V2_V3V4<-subset(metadata_merged,Primers=="V1V2"| Primers== "V3V4")
+
+#Run PERMANOVA on distances
+adonis_V1V2_V3V4 <- adonis2(bray_dist_V1V2_V3V4 ~ Primers+Tissue_type , data=meta_V1V2_V3V4, perm = 999)
+adonis_V1V2_V3V4
+write.csv(adonis_V1V2_V3V4,'./adonis_V1V2_V3V4.csv')
+
+## V1V2 VS V4V5 ##
+Genus_merged_V1V2_V4V5 <-phy_glom_Genus_merged%>%
+                          subset_samples(.,Primers %in% c("V4V5","V1V2"))
+bray_dist_V1V2_V4V5<- as.matrix(phyloseq::distance(Genus_merged_V1V2_V4V5, "bray"))
+meta_V1V2_V4V5<-subset(metadata_merged,Primers=="V1V2"| Primers== "V4V5")
+adonis_V1V2_V4V5 <- adonis2(bray_dist_V1V2_V4V5 ~ Primers+Tissue_type , data=meta_V1V2_V4V5, perm = 999)
+adonis_V1V2_V4V5
+write.csv(adonis_V1V2_V4V5,'./adonis_V1V2_V4V5.csv')
+
+## V3V4 VS V4V5 ##
+Genus_merged_V3V4_V4V5 <-phy_glom_Genus_merged%>%
+                          subset_samples(.,Primers %in% c("V4V5","V3V4"))
+bray_dist_V3V4_V4V5<- phyloseq::distance(Genus_merged_V3V4_V4V5, "bray")
+meta_V3V4_V4V5<-subset(metadata_merged,Primers=="V1V2"| Primers== "V4V5")
+
+adonis_V3V4_V4V5 <- adonis2(bray_dist_V3V4_V4V5 ~ Primers+Tissue_type , data=meta_V3V4_V4V5, perm = 999)
+adonis_V3V4_V4V5
+write.csv(adonis_V3V4_V4V5,'./adonis_V3V4_V4V5.csv')
+
+## SIMPER ##
+# Transpose the OTU table
+otu_table <- as.data.frame(t(otu_table(phy_glom_Genus_merged)))
+ metadata_merged <- sample_data(phy_glom_Genus_merged) %>%
+    data.frame() %>%
+    mutate(Tissue_type=case_when(
+                               grepl("Water",Tissue_type)~"Sea water",
+                               grepl("Gastrovascular canals",Tissue_type)~"GVC", 
+                   TRUE ~ Tissue_type))
+# SIMPER primers  
+simper_primers<-simper(otu_table, metadata_merged$Primer,permutations=999)
+simper_primers_df <- rbind(
+  data.frame(simper_primers$V1V2_V3V4,Primers = "V1V2_V3V4"),
+  data.frame(simper_primers$V1V2_V4V5,Primers = "V1V2_V4V5"),
+  data.frame(simper_primers$V3V4_V4V5,Primers = "V3V4_V4V5"))%>%
+  filter(cusum<=0.7)
+
+write.csv(simper_primers_df, file = "simper_primers.csv")
+
+# SIMPER tissue types
+simper_tissue<-simper(otu_table, metadata_merged$Tissue_type,permutations=999)
+simper_tissue_df <- rbind(
+  data.frame(simper_tissue$Bell_Gonads,Primers = "Bell_Gonads"),
+  data.frame(simper_tissue$Bell_Tentacles,Primers = "Bell_Tentacles"),
+  data.frame(simper_tissue$Bell_GVC,Primers = "Bell_GVC"),
+  data.frame(simper_tissue$Bell_Rhopalium,Primers = "Bell_Rhopalium"),
+  data.frame(simper_tissue$`Bell_Sea water` ,Primers = "Bell_Sea water"),
+  data.frame(simper_tissue$Gonads_Tentacles,Primers = "Gonads_Tentacles"),
+  data.frame(simper_tissue$Gonads_GVC,Primers = "Gonads_GVC"),
+  data.frame(simper_tissue$Gonads_Rhopalium,Primers = "Gonads_Rhopalium"),
+  data.frame(simper_tissue$`Gonads_Sea water` ,Primers = "Gonads_Sea water"),
+  data.frame(simper_tissue$Tentacles_GVC,Primers = "Tentacles_GVC"),
+  data.frame(simper_tissue$Tentacles_Rhopalium,Primers = "Tentacles_Rhopalium"),
+  data.frame(simper_tissue$`Tentacles_Sea water`,Primers = "Tentacles_Sea water"),
+  data.frame(simper_tissue$GVC_Rhopalium,Primers = "GVC_Rhopalium"),
+  data.frame(simper_tissue$`GVC_Sea water`,Primers = "GVC_Sea water"),
+  data.frame(simper_tissue$`Rhopalium_Sea water`,Primers = "Rhopalium_Sea water")) %>%
+  filter(cusum<=0.7)
+write.csv(simper_tissue_df, file = "simper_tissue.csv")
+
+# Kruskal test on main taxa
+kruskal.test(otu_table$Cuneatibacter~ metadata_merged$Primers )
+kruskal.test(otu_table$Alphaproteobacteria_uncl  ~ metadata_merged$Primers)
+kruskal.test(otu_table$Cuneatibacter~ metadata_merged$Tissue_type )
+kruskal.test(otu_table$Alphaproteobacteria_uncl  ~ metadata_merged$Tissue_type)
+
+#### SEPARATE DATA #### 
+V1V2_phyloseq=readRDS("./V1V2_phyloseq")
+V3V4_phyloseq=readRDS("./V3V4_phyloseq")
+V4V5_phyloseq=readRDS("./V4V5_phyloseq")
+
+#V1V2
+bray_dist_V1V2 <- phyloseq::distance(V1V2_phyloseq, "bray")
+metadata_V1V2<- metadata_merged%>%
+                  filter(Primers=="V1V2")
+#Run PERMANOVA on distances
+adonis_V1V2 <- adonis2(bray_dist_V1V2 ~ Tissue_type+Jellyfish_number , data= metadata_V1V2, perm = 999)
+
+#V3V4
+bray_dist_V3V4 <- phyloseq::distance(V3V4_phyloseq, "bray")
+metadata_V3V4 <- metadata_merged%>%
+                  filter(Primers=="V3V4")
+adonis_V3V4 <- adonis2(bray_dist_V3V4 ~ Tissue_type+Jellyfish_number , data= metadata_V3V4, perm = 999)
+
+#V4V5
+bray_dist_V4V5 <- phyloseq::distance(V4V5_phyloseq, "bray")
+metadata_V4V5 <- metadata_merged%>%
+                  filter(Primers=="V4V5")
+adonis_V4V5 <- adonis2(bray_dist_V4V5 ~ Tissue_type+Jellyfish_number , data= metadata_V4V5, perm = 999)
+
+write.csv(adonis_V1V2,'./adonis_V1V2.csv')
+write.csv(adonis_V3V4,'./adonis_V3V4.csv')
+write.csv(adonis_V4V5,'./adonis_V4V5.csv')
+```
