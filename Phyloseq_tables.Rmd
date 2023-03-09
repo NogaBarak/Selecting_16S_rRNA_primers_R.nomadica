@@ -1,0 +1,102 @@
+---
+title: "Number of reads left after DADA2 analysis"
+output: html_notebook
+---
+
+```{r}
+library(phyloseq)
+library(vegan)
+library(ggplot2)
+library(dplyr)
+```
+
+#### Data for V1V2,V3V4 and V4V5
+```{r}
+setwd("C:/Users/Noga/OneDrive - University of Haifa/Noga Phd/Jellyfish_research/16s_analysis/Primer_comparison")
+#V1V2
+ASVs_tab_V1V2<- read.csv("./V1V2/ASV_V1V2_seqtab.csv", h=T, row.names = 1)
+TAX_tab_V1V2<- as.matrix(read.csv("./V1V2/Taxonomy_V1V2_table.csv", h=T, row.names = 1))
+Metadata_V1V2 <- read.csv("./V1V2/MetadataV1V2.csv", h = T, row.names = 1)
+#V3V4
+ASVs_tab_V3V4<- read.csv("./V3V4/ASV_V3V4_seqtab.csv", h=T, row.names = 1)
+TAX_tab_V3V4<- as.matrix(read.csv("./V3V4/Taxonomy_V3V4_table.csv", h=T, row.names = 1))
+Metadata_V3V4 <- read.csv("./V3V4/MetadataV3V4.csv", h = T, row.names = 1)
+#V4V5
+ASVs_tab_V4V5<- read.csv("./V4V5/ASV_V4V5_seqtab.csv", h=T, row.names = 1)
+TAX_tab_V4V5<- as.matrix(read.csv("./V4V5/Taxonomy_V4V5_table.csv", h=T, row.names = 1))
+Metadata_V4V5 <- read.csv("./V4V5/MetadataV4V5.csv", h = T, row.names = 1)
+```
+
+
+#### __Add unclassified sign to missing taxa__ ####
+```{r echo=TRUE, eval=TRUE}
+# Create a list of data frames
+TAX_tabs <- list(TAX_tab_V1V2, TAX_tab_V3V4, TAX_tab_V4V5)
+
+# Loop through each data frame in the list and modify as needed
+TAX_tabs_list<- list()
+for (i in seq_along(TAX_tabs)) {
+  k <- ncol(TAX_tabs[[i]]) - 1
+  for (j in 2:k) {
+    if (sum(is.na(TAX_tabs[[i]][, j])) > 1) {
+      test <- TAX_tabs[[i]][is.na(TAX_tabs[[i]][, j]), ]
+      for (m in 1:nrow(test)) {
+        if (sum(is.na(test[m, j:(k + 1)])) == length(test[m, j:(k + 1)])) {
+          test[m, j] <- paste(test[m, (j - 1)], "_uncl", sep = "")
+          test[m, (j + 1):(k + 1)] <- test[m, j]
+        }
+      }
+      TAX_tabs[[i]][is.na(TAX_tabs[[i]][, j]), ] <- test
+    }
+    if (sum(is.na(TAX_tabs[[i]][, j])) == 1) {
+      test <- TAX_tabs[[i]][is.na(TAX_tabs[[i]][, j]), ]
+      if (sum(is.na(test[j:(k + 1)])) == length(test[j:(k + 1)])) {
+        test[j] <- paste(test[(j - 1)], "_uncl", sep = "")
+        test[(j + 1):(k + 1)] <- test[j]
+      }
+      TAX_tabs[[i]][is.na(TAX_tabs[[i]][, j]),] <- test
+    }
+  }
+  TAX_tabs[[i]][is.na(TAX_tabs[[i]][, (k + 1)]), (k + 1)] <- paste(TAX_tabs[[i]][is.na(TAX_tabs[[i]][, (k + 1)]), k], "_uncl", sep = "")
+  
+ TAX_tabs_list[[i]]<- TAX_tabs[[i]]
+}
+
+# Assign each Phyloseq object to a separate variable
+TAX_tab_V1V2_nna <- TAX_tabs_list[[1]]
+TAX_tab_V3V4_nna <- TAX_tabs_list[[2]]
+TAX_tab_V4V5_nna <- TAX_tabs_list[[3]]
+
+```
+#### __Filter data and create phyloseq tables__ ####
+```{r echo=TRUE, eval=TRUE}
+# create a list of ASV and Taxonomy tables
+ASVs_tabs_list <- list(ASVs_tab_V1V2, ASVs_tab_V3V4, ASVs_tab_V4V5)
+TAX_tabs_list <- list(TAX_tab_V1V2_nna, TAX_tab_V3V4_nna, TAX_tab_V4V5_nna)
+Meta_tabs_list <- list(Metadata_V1V2, Metadata_V3V4, Metadata_V4V5)
+
+# Loop through the taxonomic tables and create a Phyloseq object for each
+phyloseq_list <- lapply(seq_along(TAX_tabs_list), function(i) {
+  phyloseq_obj <- phyloseq(otu_table(ASVs_tabs_list[[i]], taxa_are_rows = TRUE),
+                           tax_table(TAX_tabs_list[[i]]), 
+                           sample_data(Meta_tabs_list[[i]]))
+  phyloseq_obj <- prune_taxa(taxa_sums(phyloseq_obj) > 0, phyloseq_obj) 
+  phyloseq_obj <- subset_taxa(phyloseq_obj, !Kingdom %in% c('Archaea','Eukaryota') &
+                                            !Phylum %in% c('Bacteria_uncl', 'Archaea_uncl', 'NA_uncl') &
+                                            !Order %in% c('Chloroplast') &
+                                            !Family %in% c('Mitochondria'))%>%
+                                            prune_taxa(taxa_sums(.) > 0, .)
+  # Assign unique names to each ASV in the Phyloseq object
+  taxa_names(phyloseq_obj) <- paste0("ASV", seq(ntaxa(phyloseq_obj)))
+  return(phyloseq_obj)
+})
+
+# Assign each Phyloseq object to a separate variable
+V1V2_phyloseq <- phyloseq_list[[1]]
+V3V4_phyloseq <- phyloseq_list[[2]]
+V4V5_phyloseq <- phyloseq_list[[3]]
+# Save phlyoseq objects
+saveRDS(V1V2_phyloseq,"./V1V2_phyloseq")
+saveRDS(V3V4_phyloseq,"./V3V4_phyloseq")
+saveRDS(V4V5_phyloseq,"./V4V5_phyloseq")
+```
