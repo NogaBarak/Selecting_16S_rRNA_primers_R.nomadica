@@ -1,0 +1,50 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+#### Colors fot graphs ####
+```{r}
+Tissue_color = c("Bell"="blue","GVC"="green","Gonads"="purple", "Rhopalium"="orange","Tentacles"="gold4","Sea water"="deepskyblue3")
+Tissue_shape = c('Bell' = 10, "GVC" = 16, Gonads = 17, 'Rhopalium' = 18, 'Tentacles' = 15,'Sea water' = 8)
+Primer_color = c("#440154ff", "#21908dff", "#d18904")
+cindaria_color= c('Jellyfish'="#014ba0",'Coral'="#84b6f4",'Sea anemone'="#c2e3fc","Hydrozoa"="#dcffff")
+Jelly_shape= c(19,17,15,8)
+colors_order_all<-c("Alphaproteobacteria_uncl"="#020461",
+                         "Caulobacterales"="#082A5E",
+                         'Puniceispirillales'="#0B3B83",
+                         "Rhizobiales" = "#0E4CAA",
+                         "Rhodobacterales" ="#115DD0",
+                         'Rhodospirillales'= "#5594F1",  
+                          "Rickettsiales" ='#7BABF4',
+                          "SAR11 clade" ="#B2EBF2",
+                          "Sphingomonadales"='#CDF2F6',
+                        "Gammaproteobacteria_uncl"="#550c87",
+                         "Burkholderiales"= "#4D077D",
+                          "Enterobacterales"= "#6B09AC",
+                       "Pseudomonadales" ="#930CED",
+                         "Bacilli_uncl" ="#590D22",
+                         "Bacillales"="#A4133C",
+                          "Lactobacillales"='#C9184A',
+                         "Mycoplasmatales" ="#FF4D6D",
+                          "Staphylococcales"='#FF738C',
+                         "Bacteroidales"= "#364E04",
+                         "Chitinophagales"="#517406",
+                         'Cytophagale'="#6D9B08",
+                        "Flavobacteriales"='#8DCA0B',
+                          'Actinomarinales'="#D06500",
+                       'Cytophagales'="#F57600",
+                           "Corynebacteriales"="#FF810A",
+                        "Micrococcales" ="#FFAB5C",
+                        "Propionibacteriales"='#FFC38A',
+                          "Lachnospirales" = "#FFFF33",
+                       "Synechococcales" ="#70e000",
+                        "Campylobacterales" ="#D62828",
+                          'SAR324'="#582F0E",
+                          "Other taxa" ="#a9a9a9")
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
